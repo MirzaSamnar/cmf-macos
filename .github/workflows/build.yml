@@ -1,0 +1,57 @@
+# Builds the macOS app on GitHub's cloud Macs and offers it as a downloadable zip.
+# Put this file at .github/workflows/build-app.yml in your fork, then run it
+# from the Actions tab ("Build macOS app" → "Run workflow").
+name: Build macOS app
+
+on:
+  workflow_dispatch:   # manual "Run workflow" button only
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build (universal, ad-hoc signed)
+        run: |
+          set -euo pipefail
+          # The repo has no shared scheme; xcodebuild auto-creates one named after the target.
+          xcodebuild -list -project "Nothing X MacOS.xcodeproj"
+          xcodebuild \
+            -project "Nothing X MacOS.xcodeproj" \
+            -scheme "Nothing X MacOS" \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath build \
+            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            build
+
+      - name: Check signature and entitlements
+        run: |
+          APP="build/Build/Products/Release/Nothing X MacOS.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -d --entitlements - "$APP"
+          lipo -info "$APP/Contents/MacOS/Nothing X MacOS"
+
+      - name: Zip app
+        run: |
+          cd build/Build/Products/Release
+          ditto -c -k --sequesterRsrc --keepParent "Nothing X MacOS.app" "$GITHUB_WORKSPACE/Nothing-X-MacOS.zip"
+          shasum -a 256 "$GITHUB_WORKSPACE/Nothing-X-MacOS.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nothing-X-MacOS
+          path: Nothing-X-MacOS.zip
+          retention-days: 14
