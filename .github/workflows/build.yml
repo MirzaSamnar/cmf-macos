@@ -1,17 +1,18 @@
 # Builds the macOS app on GitHub's cloud Macs and offers it as a downloadable zip.
-# Put this file at .github/workflows/build-app.yml in your fork, then run it
-# from the Actions tab ("Build macOS app" → "Run workflow").
 name: Build macOS app
 
 on:
-  workflow_dispatch:   # manual "Run workflow" button only
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-14
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
